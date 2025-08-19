@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Paitec RTMP Server - Statistics</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.15);
+        }
+
+        .stat-card h3 {
+            color: #667eea;
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-online {
+            background: #4CAF50;
+            box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+        }
+
+        .status-offline {
+            background: #f44336;
+            box-shadow: 0 0 10px rgba(244, 67, 54, 0.5);
+        }
+
+        .streams-section {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+
+        .streams-section h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .stream-item {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-left: 4px solid #667eea;
+        }
+
+        .stream-item h4 {
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .stream-item p {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .no-streams {
+            text-align: center;
+            color: #666;
+            font-style: italic;
+            padding: 40px;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .controls-left {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .controls-right {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .btn.logout {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        }
+
+        .btn.logout:hover {
+            box-shadow: 0 5px 15px rgba(220, 53, 69, 0.3);
+        }
+
+        .loading {
+            text-align: center;
+            color: white;
+            font-size: 1.1rem;
+            padding: 40px;
+        }
+
+        .error {
+            background: #ffebee;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border-left: 4px solid #f44336;
+        }
+
+        .uptime {
+            font-family: 'Courier New', monospace;
+            background: #f5f5f5;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .stat-value {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 RTMP Server Statistics</h1>
+            <p>Real-time server monitoring and performance metrics</p>
+        </div>
+
+        <div class="controls">
+            <div class="controls-left">
+                <button class="btn" onclick="refreshStats()">🔄 Refresh Stats</button>
+                <a href="/dashboard.html" class="btn">📺 Dashboard</a>
+                <a href="/" class="btn">🏠 Home</a>
+            </div>
+            <div class="controls-right">
+                <a href="/logout" class="btn logout">🚪 Logout</a>
+            </div>
+        </div>
+
+        <div id="loading" class="loading">
+            Loading server statistics...
+        </div>
+
+        <div id="error" class="error" style="display: none;"></div>
+
+        <div id="stats-content" style="display: none;">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3>
+                        <span class="status-indicator" id="status-indicator"></span>
+                        Server Status
+                    </h3>
+                    <div class="stat-value" id="server-status">-</div>
+                    <div class="stat-label">Current Status</div>
+                </div>
+
+                <div class="stat-card">
+                    <h3>⏱️ Uptime</h3>
+                    <div class="stat-value uptime" id="uptime">-</div>
+                    <div class="stat-label">Server Running Time</div>
+                </div>
+
+                <div class="stat-card">
+                    <h3>👥 Active Clients</h3>
+                    <div class="stat-value" id="active-clients">-</div>
+                    <div class="stat-label">Connected Clients</div>
+                </div>
+
+                <div class="stat-card">
+                    <h3>📺 Active Streams</h3>
+                    <div class="stat-value" id="active-streams">-</div>
+                    <div class="stat-label">Live Streams</div>
+                </div>
+
+                <div class="stat-card">
+                    <h3>🔗 Total Connections</h3>
+                    <div class="stat-value" id="total-connections">-</div>
+                    <div class="stat-label">All Time Connections</div>
+                </div>
+
+                <div class="stat-card">
+                    <h3>📋 Version</h3>
+                    <div class="stat-value" id="version">-</div>
+                    <div class="stat-label">Server Version</div>
+                </div>
+            </div>
+
+            <div class="streams-section">
+                <h2>📺 Active Streams</h2>
+                <div id="streams-list">
+                    <div class="no-streams">No active streams</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8080/api/v1/stats/json';
+        let refreshInterval;
+
+        async function refreshStats() {
+            try {
+                document.getElementById('loading').style.display = 'block';
+                document.getElementById('stats-content').style.display = 'none';
+                document.getElementById('error').style.display = 'none';
+
+                const response = await fetch(`${API_BASE}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                updateStats(data);
+                
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('stats-content').style.display = 'block';
+            } catch (error) {
+                console.error('Error fetching stats:', error);
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error').style.display = 'block';
+                document.getElementById('error').textContent = `Error loading statistics: ${error.message}`;
+            }
+        }
+
+        function updateStats(data) {
+            // Update status
+            const statusIndicator = document.getElementById('status-indicator');
+            const serverStatus = document.getElementById('server-status');
+            
+            if (data.status === 'Online') {
+                statusIndicator.className = 'status-indicator status-online';
+                serverStatus.textContent = 'Online';
+                serverStatus.style.color = '#4CAF50';
+            } else {
+                statusIndicator.className = 'status-indicator status-offline';
+                serverStatus.textContent = 'Offline';
+                serverStatus.style.color = '#f44336';
+            }
+
+            // Update other stats
+            document.getElementById('uptime').textContent = data.uptime || '-';
+            document.getElementById('active-clients').textContent = data.activeClients || 0;
+            document.getElementById('active-streams').textContent = data.activeStreams || 0;
+            document.getElementById('total-connections').textContent = data.totalConnections || 0;
+            document.getElementById('version').textContent = data.version || '1.0.0';
+
+            // Update streams
+            updateStreams(data.streams || []);
+        }
+
+        function updateStreams(streams) {
+            const streamsList = document.getElementById('streams-list');
+            
+            if (streams.length === 0) {
+                streamsList.innerHTML = '<div class="no-streams">No active streams</div>';
+                return;
+            }
+
+            streamsList.innerHTML = streams.map(stream => `
+                <div class="stream-item">
+                    <h4>${stream.name || stream.id}</h4>
+                    <p>ID: ${stream.id} | Created: ${new Date(stream.created).toLocaleString()}</p>
+                </div>
+            `).join('');
+        }
+
+        // Auto-refresh every 5 seconds
+        function startAutoRefresh() {
+            refreshInterval = setInterval(refreshStats, 5000);
+        }
+
+        function stopAutoRefresh() {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
+        }
+
+        // Initial load
+        document.addEventListener('DOMContentLoaded', () => {
+            refreshStats();
+            startAutoRefresh();
+        });
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', stopAutoRefresh);
+    </script>
+</body>
+</html> 

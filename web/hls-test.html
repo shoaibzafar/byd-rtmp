@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HLS Test Player</title>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        video {
+            width: 100%;
+            max-width: 640px;
+            height: auto;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+        }
+        .controls {
+            margin: 20px 0;
+        }
+        .button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        .button:hover {
+            background: #5a6fd8;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+        }
+        .error {
+            background: #ffebee;
+            border-left-color: #f44336;
+            color: #c62828;
+        }
+        .success {
+            background: #e8f5e8;
+            border-left-color: #4caf50;
+            color: #2e7d32;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎥 Paitec HLS Test Player</h1>
+        
+        <div class="controls">
+            <input type="text" id="hlsUrl" placeholder="HLS URL (.m3u8)" 
+                   value="http://localhost:8080/hls/auto-stream-1755333988/auto-stream-1755333988.m3u8"
+                   style="width: 70%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+            <button class="button" onclick="loadStream()">▶️ Load Stream</button>
+            <button class="button" onclick="testUrl()">🔗 Test URL</button>
+        </div>
+        
+        <div id="status" class="status">Ready to load stream</div>
+        
+        <video id="video" controls></video>
+        
+        <div style="margin-top: 20px;">
+            <h3>📋 Quick Tests:</h3>
+            <button class="button" onclick="loadAutoStream()">Load Auto Stream</button>
+            <button class="button" onclick="checkServer()">Check Server</button>
+        </div>
+        
+        <div style="margin-top: 20px;">
+            <h3>ℹ️ Info:</h3>
+            <p><strong>Current Stream:</strong> auto-stream-1755333988</p>
+            <p><strong>HLS URL:</strong> http://localhost:8080/hls/auto-stream-1755333988/auto-stream-1755333988.m3u8</p>
+            <p><strong>RTMP URL:</strong> rtmp://localhost:1935/live/auto-stream-1755333988</p>
+        </div>
+    </div>
+
+    <script>
+        let hls = null;
+        const video = document.getElementById('video');
+        const statusDiv = document.getElementById('status');
+
+        function updateStatus(message, type = 'info') {
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+
+        function loadStream() {
+            const url = document.getElementById('hlsUrl').value.trim();
+            if (!url) {
+                updateStatus('Please enter a HLS URL', 'error');
+                return;
+            }
+
+            updateStatus('Loading stream...', 'info');
+            
+            // Cleanup previous HLS instance
+            if (hls) {
+                hls.destroy();
+                hls = null;
+            }
+
+            // Check if browser supports HLS natively
+            if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                updateStatus('Using native HLS support', 'success');
+                video.src = url;
+                video.addEventListener('loadstart', () => updateStatus('Stream loading...', 'info'));
+                video.addEventListener('canplay', () => updateStatus('Stream ready to play!', 'success'));
+                video.addEventListener('error', (e) => updateStatus(`Native HLS error: ${e.message}`, 'error'));
+            } else if (Hls.isSupported()) {
+                updateStatus('Using HLS.js library', 'info');
+                hls = new Hls({
+                    debug: true,
+                    enableWorker: true,
+                    lowLatencyMode: true
+                });
+                
+                hls.loadSource(url);
+                hls.attachMedia(video);
+                
+                hls.on(Hls.Events.MEDIA_ATTACHED, () => {
+                    updateStatus('HLS media attached', 'info');
+                });
+                
+                hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
+                    updateStatus(`HLS manifest loaded (${data.levels.length} quality levels)`, 'success');
+                });
+                
+                hls.on(Hls.Events.ERROR, (event, data) => {
+                    updateStatus(`HLS Error: ${data.type} - ${data.details}`, 'error');
+                    console.error('HLS Error:', data);
+                });
+                
+                hls.on(Hls.Events.FRAG_LOADED, () => {
+                    updateStatus('HLS segment loaded successfully', 'success');
+                });
+                
+            } else {
+                updateStatus('HLS not supported in this browser', 'error');
+            }
+        }
+
+        function testUrl() {
+            const url = document.getElementById('hlsUrl').value.trim();
+            if (!url) {
+                updateStatus('Please enter a HLS URL', 'error');
+                return;
+            }
+
+            updateStatus('Testing URL accessibility...', 'info');
+            
+            fetch(url, { method: 'HEAD' })
+                .then(response => {
+                    if (response.ok) {
+                        updateStatus(`URL accessible (${response.status})`, 'success');
+                        return fetch(url);
+                    } else {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                })
+                .then(response => response.text())
+                .then(content => {
+                    if (content.includes('#EXTM3U')) {
+                        updateStatus('Valid M3U8 playlist found!', 'success');
+                        console.log('Playlist content:', content);
+                    } else {
+                        updateStatus('URL accessible but not a valid M3U8 playlist', 'error');
+                    }
+                })
+                .catch(error => {
+                    updateStatus(`URL test failed: ${error.message}`, 'error');
+                });
+        }
+
+        function loadAutoStream() {
+            document.getElementById('hlsUrl').value = 'http://localhost:8080/hls/auto-stream-1755333988/auto-stream-1755333988.m3u8';
+            loadStream();
+        }
+
+        function checkServer() {
+            updateStatus('Checking server status...', 'info');
+            
+            Promise.all([
+                fetch('http://localhost:8080/health'),
+                fetch('http://localhost:8080/api/public/streams')
+            ])
+            .then(responses => Promise.all(responses.map(r => r.json())))
+            .then(([health, streams]) => {
+                updateStatus(`Server: ${health.status || 'ok'}, Streams: ${streams.streams?.length || 0}`, 'success');
+                console.log('Health:', health);
+                console.log('Streams:', streams);
+            })
+            .catch(error => {
+                updateStatus(`Server check failed: ${error.message}`, 'error');
+            });
+        }
+
+        // Auto-load on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            updateStatus('HLS Test Player ready', 'success');
+            
+            // Check if URL is provided in hash
+            const hash = window.location.hash.substring(1);
+            if (hash) {
+                const decodedUrl = decodeURIComponent(hash);
+                document.getElementById('hlsUrl').value = decodedUrl;
+                updateStatus('Loading stream from URL...', 'info');
+                setTimeout(() => loadStream(), 1000);
+            }
+        });
+    </script>
+</body>
+</html>

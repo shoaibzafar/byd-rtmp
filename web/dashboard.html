@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Paitec RTMP Server Dashboard</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📹</text></svg>">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+            position: relative;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .logout-btn {
+            position: absolute;
+            top: 0;
+            right: 0;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 8px 16px;
+            border-radius: 20px;
+            text-decoration: none;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .logout-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-1px);
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+        }
+
+        .card h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+        }
+
+        .stat {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+
+        .stat-label {
+            font-weight: 500;
+        }
+
+        .stat-value {
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .status.online {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status.offline {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .controls {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .controls h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        .button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+            transition: background 0.2s;
+        }
+
+        .button:hover {
+            background: #5a6fd8;
+        }
+
+        .button.secondary {
+            background: #6c757d;
+        }
+
+        .button.secondary:hover {
+            background: #5a6268;
+        }
+
+        .streams-list {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .stream-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .stream-item:last-child {
+            border-bottom: none;
+        }
+
+        .stream-info h4 {
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .stream-info p {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .refresh-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 15px;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s;
+        }
+
+        .refresh-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <a href="/logout" class="logout-btn">🚪 Logout</a>
+            <h1>🎥 Paitec RTMP Server</h1>
+            <p>Real-Time Messaging Protocol Server Dashboard</p>
+        </div>
+
+        <div class="controls">
+            <h3>Server Controls</h3>
+            <button class="button" onclick="refreshStats()">🔄 Refresh Stats</button>
+            <button class="button secondary" onclick="testConnection()">🔗 Test Connection</button>
+            <button class="button secondary" onclick="showStreamInfo()">📺 Stream Info</button>
+        </div>
+
+        <div class="dashboard">
+            <div class="card">
+                <h3>📊 Server Status</h3>
+                <div class="stat">
+                    <span class="stat-label">Status:</span>
+                    <span class="status" id="server-status">Checking...</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Uptime:</span>
+                    <span class="stat-value" id="uptime">-</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Version:</span>
+                    <span class="stat-value" id="version">-</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>👥 Connections</h3>
+                <div class="stat">
+                    <span class="stat-label">Active Clients:</span>
+                    <span class="stat-value" id="clients-count">-</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Active Streams:</span>
+                    <span class="stat-value" id="streams-count">-</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Total Connections:</span>
+                    <span class="stat-value" id="total-connections">-</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>🌐 API Endpoints</h3>
+                <div class="stat">
+                    <span class="stat-label">RTMP Port:</span>
+                    <span class="stat-value">1935</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">HTTP API:</span>
+                    <span class="stat-value">8080</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">WebSocket:</span>
+                    <span class="stat-value">8080/ws</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="streams-list">
+            <h3>📺 Active Streams</h3>
+            <div class="card" style="margin-bottom: 12px;">
+                <h3>📡 DVR/NVR/Camera Configuration</h3>
+                <div class="stat" style="gap: 8px; align-items: center;">
+                    <span class="stat-label">Device Name:</span>
+                    <input id="device-name" type="text" placeholder="Camera-01, DVR-Main, etc." value="Camera-01" style="flex:1; padding:8px; border:1px solid #e2e8f0; border-radius:6px;" />
+                </div>
+                <div class="stat" style="gap: 8px; align-items: center;">
+                    <span class="stat-label">Device Type:</span>
+                    <select id="device-type" style="flex:1; padding:8px; border:1px solid #e2e8f0; border-radius:6px;">
+                        <option value="camera">IP Camera</option>
+                        <option value="dvr">DVR</option>
+                        <option value="nvr">NVR</option>
+                        <option value="obs">OBS Studio</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <div class="stat" style="gap: 8px; align-items: center;">
+                    <button class="button" onclick="generateRtmpUrl()">🔗 Generate RTMP URL</button>
+                    <button class="button secondary" onclick="copyGeneratedUrl()">📋 Copy URL</button>
+                </div>
+                <div id="rtmp-url-result" style="display: none; margin-top: 12px; padding: 12px; background: #f8fafc; border-radius: 6px; border: 1px solid #e2e8f0;">
+                    <h4>📺 RTMP Configuration:</h4>
+                    <div style="margin-top: 8px;">
+                        <strong>Server:</strong> <span id="rtmp-server">rtmp://localhost:1935/live</span><br>
+                        <strong>Stream Key:</strong> <span id="stream-key"></span><br>
+                        <strong>Full URL:</strong> <span id="full-rtmp-url"></span>
+                    </div>
+                    <div class="stat" style="gap: 8px; align-items: center; margin-top: 8px;">
+                        <span class="stat-label">💡 Instructions:</span>
+                        <span class="stat-value">Configure your device with the Server URL and Stream Key above.</span>
+                    </div>
+                </div>
+            </div>
+            <div class="card" style="margin-bottom: 12px;">
+                <h3>⚙️ Playback Settings</h3>
+                <div class="stat" style="gap: 8px; align-items: center;">
+                    <span class="stat-label">HLS Base URL:</span>
+                    <input id="hls-base-url" type="text" placeholder="e.g. https://your-domain:9443/hls/" style="flex:1; padding:8px; border:1px solid #e2e8f0; border-radius:6px;" />
+                    <button class="button" onclick="saveHlsBaseUrl()">Save</button>
+                </div>
+                <div class="stat" style="gap: 8px; align-items: center;">
+                    <span class="stat-label">Tip:</span>
+                    <span class="stat-value">Local HLS is now available! Click ▶️ Play to open HLS in browser, or use Copy RTMP for VLC/ffplay.</span>
+                </div>
+            </div>
+            <div id="streams-container">
+                <div class="loading">Loading streams...</div>
+            </div>
+        </div>
+    </div>
+
+    <button class="refresh-btn" onclick="refreshStats()" title="Refresh Stats">
+        🔄
+    </button>
+
+    <script>
+        const API_BASE = 'http://localhost:8080/api/v1';
+        const WS_URL = 'ws://localhost:8080/api/v1/ws';
+        
+        let ws = null;
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            refreshStats();
+            connectWebSocket();
+        });
+
+        // Refresh server statistics
+        async function refreshStats() {
+            try {
+                // Get health status
+                const healthResponse = await fetch('http://localhost:8080/health');
+                const healthData = await healthResponse.json();
+                
+                document.getElementById('server-status').textContent = 'Online';
+                document.getElementById('server-status').className = 'status online';
+                document.getElementById('version').textContent = healthData.version || '1.0.0';
+
+                // Get server stats
+                const statsResponse = await fetch(`${API_BASE}/stats/json`);
+                const statsData = await statsResponse.json();
+                
+                document.getElementById('clients-count').textContent = statsData.activeClients || 0;
+                document.getElementById('streams-count').textContent = statsData.activeStreams || 0;
+                document.getElementById('uptime').textContent = statsData.uptime || '-';
+
+                // Get streams list
+                const streamsResponse = await fetch(`http://localhost:8080/api/public/streams`);
+                const streamsData = await streamsResponse.json();
+                
+                updateStreamsList(streamsData.streams || []);
+
+            } catch (error) {
+                console.error('Error fetching stats:', error);
+                document.getElementById('server-status').textContent = 'Offline';
+                document.getElementById('server-status').className = 'status offline';
+            }
+        }
+
+        // Update streams list
+        function updateStreamsList(streams) {
+            const container = document.getElementById('streams-container');
+            
+            if (streams.length === 0) {
+                container.innerHTML = '<div class="loading">No active streams</div>';
+                return;
+            }
+
+            container.innerHTML = streams.map(stream => `
+                <div class="stream-item">
+                    <div class="stream-info">
+                        <h4>${stream.name}</h4>
+                        <p>ID: ${stream.id} | Created: ${new Date(stream.created).toLocaleString()}</p>
+                    </div>
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <span class="status online">Active</span>
+                        <button class="button" onclick="playStream('${stream.name}')">▶️ HLS Play</button>
+                        <button class="button secondary" onclick="copyRtmp('${stream.name}')">📋 Copy RTMP</button>
+                        <button class="button" onclick="startHlsConversion('${stream.name}')">🔄 Convert HLS</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Connect to WebSocket for real-time updates
+        function connectWebSocket() {
+            try {
+                ws = new WebSocket(WS_URL);
+                
+                ws.onopen = function() {
+                    console.log('WebSocket connected');
+                };
+                
+                ws.onmessage = function(event) {
+                    const data = JSON.parse(event.data);
+                    if (data.type === 'stats') {
+                        updateStatsFromWebSocket(data.data);
+                    }
+                };
+                
+                ws.onclose = function() {
+                    console.log('WebSocket disconnected');
+                    // Reconnect after 5 seconds
+                    setTimeout(connectWebSocket, 5000);
+                };
+                
+                ws.onerror = function(error) {
+                    console.error('WebSocket error:', error);
+                };
+            } catch (error) {
+                console.error('Failed to connect WebSocket:', error);
+            }
+        }
+
+        // Update stats from WebSocket
+        function updateStatsFromWebSocket(stats) {
+            document.getElementById('clients-count').textContent = stats.activeClients || 0;
+            document.getElementById('streams-count').textContent = stats.activeStreams || 0;
+            document.getElementById('uptime').textContent = stats.uptime || '-';
+        }
+
+        // Test server connection
+        async function testConnection() {
+            try {
+                const response = await fetch('http://localhost:8080/health');
+                if (response.ok) {
+                    alert('✅ Server connection successful!');
+                } else {
+                    alert('❌ Server connection failed!');
+                }
+            } catch (error) {
+                alert('❌ Server connection failed: ' + error.message);
+            }
+        }
+
+        // Show stream information
+        function showStreamInfo() {
+            alert(`
+📺 Stream Information:
+
+                RTMP URL: rtmp://localhost:1935/live
+Stream Key: [your-stream-name]
+
+Example:
+- OBS Studio: rtmp://localhost:1935/live/stream1
+- FFmpeg: ffmpeg -i video.mp4 -c copy -f flv rtmp://localhost:1935/live/stream1
+- VLC: rtmp://localhost:1935/live/stream1
+
+HTTP API: http://localhost:8080/api/v1
+            `);
+        }
+
+        // Auto-refresh every 30 seconds
+        setInterval(refreshStats, 30000);
+
+        // ---- Playback helpers ----
+        function ensureTrailingSlash(url) {
+            if (!url) return url;
+            return url.endsWith('/') ? url : url + '/';
+        }
+
+        function getHlsUrl(streamName) {
+            const base = localStorage.getItem('hlsBaseUrl') || '';
+            if (!base) return null;
+            return ensureTrailingSlash(base) + encodeURIComponent(streamName) + '.m3u8';
+        }
+
+        function getRtmpUrl(streamName) {
+            // Default to RTMP on localhost:1935/live; allow override via localStorage keys
+            const rtmpHost = localStorage.getItem('rtmpHost') || window.location.hostname || 'localhost';
+            const rtmpPort = localStorage.getItem('rtmpPort') || '1935';
+            const rtmpApp  = localStorage.getItem('rtmpApp')  || 'live';
+            return `rtmp://${rtmpHost}:${rtmpPort}/${rtmpApp}/${streamName}`;
+        }
+
+        function playStream(streamName) {
+            // Try local HLS first
+            const localHlsUrl = `http://${window.location.host}/hls/${encodeURIComponent(streamName)}/${encodeURIComponent(streamName)}.m3u8`;
+            
+            // Check if local HLS is available
+            fetch(localHlsUrl, { method: 'HEAD' })
+                .then(response => {
+                    if (response.ok) {
+                        // Local HLS available - open test player in new tab
+                        const testPlayerUrl = `http://${window.location.host}/hls-test.html#${encodeURIComponent(localHlsUrl)}`;
+                        window.open(testPlayerUrl, '_blank');
+                    } else {
+                        // Local HLS not available - show RTMP options
+                        const rtmpUrl = getRtmpUrl(streamName);
+                        alert(
+                            'Local HLS not available.\n\n' +
+                            'You can:\n' +
+                            '1) Use RTMP in a desktop player (VLC/ffplay); or\n' +
+                            '2) Configure external HLS Base URL above and click Save.\n\n' +
+                            'RTMP URL:\n' + rtmpUrl
+                        );
+                    }
+                })
+                .catch(error => {
+                    // Error - show RTMP options
+                    const rtmpUrl = getRtmpUrl(streamName);
+                    alert(
+                        'Local HLS not available.\n\n' +
+                        'You can:\n' +
+                            '1) Use RTMP in a desktop player (VLC/ffplay); or\n' +
+                            '2) Configure external HLS Base URL above and click Save.\n\n' +
+                            'RTMP URL:\n' + rtmpUrl
+                    );
+                });
+        }
+
+        function copyRtmp(streamName) {
+            const rtmpUrl = getRtmpUrl(streamName);
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(rtmpUrl).then(() => {
+                    alert('RTMP URL copied to clipboard:\n' + rtmpUrl);
+                }).catch(() => {
+                    prompt('Copy RTMP URL:', rtmpUrl);
+                });
+            } else {
+                prompt('Copy RTMP URL:', rtmpUrl);
+            }
+        }
+
+        function startHlsConversion(streamName) {
+            const rtmpUrl = getRtmpUrl(streamName);
+            const hlsPath = `hls/${streamName}/${streamName}.m3u8`;
+            
+            // Show conversion command
+            const ffmpegCmd = `ffmpeg -i ${rtmpUrl} -c:v libx264 -preset ultrafast -c:a aac -f hls -hls_time 10 -hls_list_size 10 -hls_flags delete_segments ${hlsPath}`;
+            
+            const message = `🔄 HLS Conversion for "${streamName}"\n\n` +
+                          `📝 Run this command to convert RTMP to HLS:\n\n` +
+                          `${ffmpegCmd}\n\n` +
+                          `✅ After running, the "▶️ HLS Play" button will work for web playback.\n\n` +
+                          `📋 Command copied to clipboard!`;
+            
+            // Copy command to clipboard
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(ffmpegCmd).then(() => {
+                    alert(message);
+                }).catch(() => {
+                    prompt('Copy FFmpeg command:', ffmpegCmd);
+                });
+            } else {
+                prompt('Copy FFmpeg command:', ffmpegCmd);
+            }
+        }
+
+        // Generate RTMP URL for DVR/NVR/Camera configuration
+        function generateRtmpUrl() {
+            const deviceName = document.getElementById('device-name').value.trim();
+            const deviceType = document.getElementById('device-type').value;
+            
+            if (!deviceName) {
+                alert('⚠️ Please enter a device name!');
+                return;
+            }
+            
+            // Generate stream key based on device name and timestamp
+            const timestamp = Date.now();
+            const streamKey = `${deviceName}-${timestamp}`;
+            
+            // Get server IP (try to detect or use localhost)
+            const serverIp = window.location.hostname || 'localhost';
+            const rtmpServer = `rtmp://${serverIp}:1935/live`;
+            const fullRtmpUrl = `${rtmpServer}/${streamKey}`;
+            
+            // Update display
+            document.getElementById('rtmp-server').textContent = rtmpServer;
+            document.getElementById('stream-key').textContent = streamKey;
+            document.getElementById('full-rtmp-url').textContent = fullRtmpUrl;
+            document.getElementById('rtmp-url-result').style.display = 'block';
+            
+            // Store for copy function
+            window.generatedRtmpUrl = fullRtmpUrl;
+            
+            console.log(`Generated RTMP URL for ${deviceType}: ${fullRtmpUrl}`);
+        }
+
+        // Copy generated RTMP URL to clipboard
+        function copyGeneratedUrl() {
+            const rtmpUrl = window.generatedRtmpUrl;
+            
+            if (!rtmpUrl) {
+                alert('⚠️ Please generate an RTMP URL first!');
+                return;
+            }
+            
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(rtmpUrl).then(() => {
+                    alert(`📋 RTMP URL copied to clipboard!\n\n${rtmpUrl}\n\n💡 Configure this URL in your DVR/NVR/Camera device.`);
+                }).catch(() => {
+                    prompt('Copy RTMP URL:', rtmpUrl);
+                });
+            } else {
+                prompt('Copy RTMP URL:', rtmpUrl);
+            }
+        }
+
+        function saveHlsBaseUrl() {
+            const input = document.getElementById('hls-base-url');
+            const value = (input.value || '').trim();
+            if (value) {
+                localStorage.setItem('hlsBaseUrl', value);
+                alert('HLS Base URL saved. The Play button will open the .m3u8 in a new tab.');
+            } else {
+                localStorage.removeItem('hlsBaseUrl');
+                alert('HLS Base URL cleared. Play will show RTMP instructions.');
+            }
+        }
+
+        // Initialize settings on load
+        (function initSettings() {
+            const input = document.getElementById('hls-base-url');
+            if (input) {
+                input.value = localStorage.getItem('hlsBaseUrl') || '';
+            }
+        })();
+    </script>
+</body>
+</html> 

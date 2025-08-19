@@ -1,0 +1,22 @@
+#!/bin/bash
+
+echo "🎯 OBS Connection Test - Simple Version"
+echo "======================================"
+echo ""
+echo "✅ Server Status:"
+curl -s http://localhost:8080/health
+echo ""
+echo ""
+echo "📺 OBS Settings (EXACT):"
+echo "  Service: Custom"
+echo "  Server: rtmp://localhost:1935/live"
+echo "  Stream Key: teststream"
+echo "  Authentication: DISABLED"
+echo ""
+echo "🔍 Current Streams:"
+curl -s http://localhost:8080/api/public/streams | jq '.streams | length' 2>/dev/null || echo "0"
+echo ""
+echo "🎬 Try connecting with OBS now..."
+echo "If it fails, we'll see the exact error in the server logs."
+echo ""
+echo "The server is ready and waiting for OBS connections." 
