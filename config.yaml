@@ -1,9 +1,9 @@
 server:
   host: "0.0.0.0"
-  port: 8181
+  port: 8080
 
 rtmp:
-  port: 1937
+  port: 1935
   buffer_size: 4096
   max_streams: 100
   stream_path: "/live"
