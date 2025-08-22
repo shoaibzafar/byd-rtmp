@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	rtmpAddr = flag.String("rtmp-addr", "0.0.0.0:1936", "RTMP server address")
+	rtmpAddr = flag.String("rtmp-addr", "0.0.0.0:1935", "RTMP server address")
 	apiAddr  = flag.String("api-addr", "0.0.0.0:8080", "HTTP API server address")
 )
 
