@@ -50,7 +50,7 @@ type WebAuthConfig struct {
 
 var defaultConfig = Config{
 	Server: ServerConfig{
-		Host: "0.0.0.0",
+		Host: "beyonditc.online",
 		Port: 8080,
 	},
 	RTMP: RTMPConfig{
